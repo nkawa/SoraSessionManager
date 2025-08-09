@@ -10,13 +10,14 @@ export const fetchSessions = async (): Promise<Session[]> => {
     // POST リクエストで API にアクセス
     const response = await axios.post(
       API_URL,
-      {
+      null
+//      {
         // 必要なリクエストボディ（もしあれば）を追加
         // 例: sessionのリストを取得するためのパラメータ
-      },
+  //    },
+      ,
       {
         headers: {
-          'Content-Type': 'application/json',
           'x-sora-target': 'Sora_20231220.ListSessions', // 指定するターゲット
         },
       }
