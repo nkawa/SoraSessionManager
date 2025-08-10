@@ -2,10 +2,12 @@
 "use client";
 import React, { useState } from "react";
 import { Table, Spinner, Alert, Button, Badge, Form, InputGroup } from "react-bootstrap";
-import { fetchSessions } from "../lib/sora_api";
+import { fetchSessions } from "@/lib/sora_api";
 
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+
+import { useSSE, type FrontEvent } from "@/lib/useSSE";
 
 const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
 
@@ -40,7 +42,9 @@ type SoraSession = {
 // --- ユーティリティ（既存のまま＋少し拡張） ---
 const fmtTime = (s?: string | null) => (s ? new Date(s).toLocaleString() : "-");
 const fmtEpochSec = (sec?: number) => (typeof sec === "number" ? new Date(sec * 1000).toLocaleString() : "-");
-const isConnActive = (c: SoraConnection) => c.connection_destroyed_timestamp === null;
+//const isConnActive = (c: SoraConnection) => c.connection_destroyed_timestamp === null;
+const isConnActive = (c: SoraConnection) => !c.connection_destroyed_timestamp;
+
 const codecStr = (c: SoraConnection) => {
     if (c.video_codec_type === "VP9" && c.video_vp9_params) return `VP9 (p=${c.video_vp9_params.profile_id})`;
     if (c.video_codec_type === "H265" && c.video_h265_params) return `H265 (L${c.video_h265_params.level_id})`;
@@ -68,14 +72,44 @@ type RecOptsState = Record<string, {
     split_duration?: number | "";
 }>;
 
+type SessionRow = {
+    connectionId?: string;
+    status?: string;
+    // 必要に応じてフィールド追加
+};
+
 const SessionList: React.FC = () => {
     const [sessions, setSessions] = useState<SoraSession[]>([]);
     const [loading, setLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
-    const [onlyActive, setOnlyActive] = useState<boolean>(false);
+    const [onlyActive, setOnlyActive] = useState<boolean>(true);
+
+    const [rows, setRows] = useState<SessionRow[]>([]);
 
     // ★ セッションごとの録画オプション（デフォルト: H.265対策で mp4）
     const [recOpts, setRecOpts] = useState<RecOptsState>({});
+
+
+
+    // auth や session イベントを受け取るためのリスナー
+    const handleEvent = (event: FrontEvent) => {
+        console.log("SSE Handle event:", event);
+        if (event.type === "auth_webhook.hit") {
+            console.log("Auth webhook hit:", event);
+
+            // ここで必要な処理を追加（例: トースト通知など）
+        } else if (event.type === "session.created") {
+            console.log("Session created:", event);
+            handleFetchSessions();
+        } else if (event.type === "event_webhook.hit") {
+            console.log("Clt event webhook hit:", event);
+        } else if (event.type === "recording.started" || event.type === "recording.stopped") {
+            console.log("Recording event:", event);
+        }
+    }
+
+    const { connected } = useSSE(handleEvent);
+
 
     const handleFetchSessions = async () => {
         setLoading(true);
@@ -92,7 +126,7 @@ const SessionList: React.FC = () => {
                 const next = { ...prev };
                 for (const s of sorted) {
                     if (!next[s.session_id]) {
-                        next[s.session_id] = { format: "mp4", split_only: true, split_duration: 3600};
+                        next[s.session_id] = { format: "mp4", split_only: true, split_duration: 3600 };
                     }
                 }
                 return next;
@@ -103,6 +137,8 @@ const SessionList: React.FC = () => {
             setLoading(false);
         }
     };
+
+
 
     const visibleSessions = sessions.filter(sess => !onlyActive || sess.connections.some(isConnActive));
 
@@ -125,7 +161,7 @@ const SessionList: React.FC = () => {
                     }
                     : { channel_id: sess.channel_id };
 
-            const r = await fetch(BASE_PATH+"/api/recording", {
+            const r = await fetch(BASE_PATH + "/api/recording", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload),
@@ -337,24 +373,25 @@ const SessionList: React.FC = () => {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {sess.connections.map((c) => {
-                                                const active = isConnActive(c);
-                                                return (
-                                                    <tr key={c.connection_id}>
-                                                        <td style={cellStyle}>
-                                                            <Badge bg={active ? "success" : "secondary"}>{active ? "active" : "ended"}</Badge>
-                                                        </td>
-                                                        <td style={cellStyle}>{c.role}</td>
-                                                        <td style={cellStyle} title={c.connection_id}>{c.connection_id.slice(0, 10)}…</td>
-                                                        <td style={cellStyle}>{codecStr(c)}</td>
-                                                        <td style={cellStyle}>{kbpsStr(c.video_bit_rate)}</td>
-                                                        <td style={cellStyle}>{c.simulcast ? "yes" : "no"}</td>
-                                                        <td style={cellStyle}>{fmtTime(c.connection_created_timestamp)}</td>
-                                                        <td style={cellStyle}>{fmtTime(c.connection_destroyed_timestamp)}</td>
-                                                        <td style={cellStyle}>{durationStr(c.connection_created_timestamp, c.connection_destroyed_timestamp)}</td>
-                                                    </tr>
-                                                );
-                                            })}
+                                            {(onlyActive ? sess.connections.filter(isConnActive) // ← ここで行も絞る
+                                                : sess.connections).map((c) => {
+                                                    const active = isConnActive(c);
+                                                    return (
+                                                        <tr key={c.connection_id}>
+                                                            <td style={cellStyle}>
+                                                                <Badge bg={active ? "success" : "secondary"}>{active ? "active" : "ended"}</Badge>
+                                                            </td>
+                                                            <td style={cellStyle}>{c.role}</td>
+                                                            <td style={cellStyle} title={c.connection_id}>{c.connection_id.slice(0, 10)}…</td>
+                                                            <td style={cellStyle}>{codecStr(c)}</td>
+                                                            <td style={cellStyle}>{kbpsStr(c.video_bit_rate)}</td>
+                                                            <td style={cellStyle}>{c.simulcast ? "yes" : "no"}</td>
+                                                            <td style={cellStyle}>{fmtTime(c.connection_created_timestamp)}</td>
+                                                            <td style={cellStyle}>{fmtTime(c.connection_destroyed_timestamp)}</td>
+                                                            <td style={cellStyle}>{durationStr(c.connection_created_timestamp, c.connection_destroyed_timestamp)}</td>
+                                                        </tr>
+                                                    );
+                                                })}
                                         </tbody>
                                     </Table>
                                 </div>

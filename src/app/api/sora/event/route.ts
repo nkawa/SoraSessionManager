@@ -2,13 +2,15 @@
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
+import { bus } from "@/lib/bus";
+
 
 export async function POST(req: Request) {
   // ヘッダーでイベント種別やIDが来る（あれば利用）
   const eventType = req.headers.get("sora-event-webhook-type"); // 例: connection.created
   const sessionId = req.headers.get("sora-session-id") || undefined;
   const connectionId = req.headers.get("sora-connection-id") || undefined;
-
+  console.log("Event webhook POST", eventType, sessionId, connectionId);
   // 本文は JSON
   let payload: any;
   try {
@@ -19,6 +21,14 @@ export async function POST(req: Request) {
     console.error("Invalid JSON from Sora event webhook");
     return NextResponse.json({ ok: true }, { status: 200 });
   }
+
+  bus.emit("front", <const>{
+    type: "event_webhook.hit",
+    eventType,
+    sessionId,
+    connectionId
+  });
+
 
   // ここでイベント種別ごとに処理を振り分け
   switch (eventType || payload?.type) {

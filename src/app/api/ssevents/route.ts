@@ -1,5 +1,6 @@
 export const runtime = "nodejs";
 import { bus } from "@/lib/bus";
+import { on } from "events";
 
 export async function GET(req: Request) {
   // クライアント識別したい場合は ?clientId=... などを使う
@@ -13,7 +14,10 @@ export async function GET(req: Request) {
       // 接続直後に ping
       send({ type: "connected", ts: Date.now() });
 
-      const onEvent = (evt: unknown) => send(evt);
+      const onEvent = (evt: unknown) =>{
+        send(evt);
+        console.log("SSE event1:", evt);
+      } 
       bus.on("front", onEvent);
 
       const heartbeat = setInterval(() => {
@@ -22,12 +26,15 @@ export async function GET(req: Request) {
 
       const cancel = () => {
         clearInterval(heartbeat);
+        console.log("SSE connection closed");
         bus.off("front", onEvent);
         controller.close();
       };
 
       // 接続終了時のハンドラ
-      (req as any).signal?.addEventListener?.("abort", cancel);
+      req.signal.addEventListener("abort", cancel, {once: true});
+
+//      (req as any).signal?.addEventListener?.("abort", cancel);
     },
   });
 

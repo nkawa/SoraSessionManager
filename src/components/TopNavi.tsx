@@ -16,6 +16,9 @@ export default function TopNavi() {
         <Navbar.Toggle aria-controls="basic-navbar-nav" />
         <Navbar.Collapse id="basic-navbar-nav">
           <Nav className="me-auto">
+            <Nav.Link as={Link} href="/conn">  Connections </Nav.Link>
+          </Nav>
+          <Nav className="me-auto">
             <Nav.Link as={Link} href="/list">  Clients </Nav.Link>
           </Nav>
           <Nav>

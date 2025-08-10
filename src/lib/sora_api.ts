@@ -10,7 +10,9 @@ export const fetchSessions = async (): Promise<Session[]> => {
     const res = await fetch(url, {
       method: 'POST',
       headers: {
+        "Content-Type": "application/json",
         'x-sora-target': 'Sora_20231220.ListSessions',
+        // 必要ならここに認証ヘッダなどを追加
       },
       // 必要なら: cache: 'no-store',
     });

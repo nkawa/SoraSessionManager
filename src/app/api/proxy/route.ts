@@ -24,14 +24,16 @@ export async function OPTIONS() {
 
 // POST only（Sora API を中継）
 export async function POST(req: Request) {
+//  console.log("POST proxy request", req.url);
   try {
     const bodyText = await req.text(); // 透過
+    const headers = await req.headers;
+//    console.log("POST proxy headers", Object.fromEntries(headers.entries()));
     const upstream  = await fetch(TARGET, {
       method: "POST",
-      headers: {
-        "x-sora-target": "Sora_20231220.ListSessions",
-        "Content-Type": "application/json",
-        // 必要ならここに認証ヘッダなどを追加
+      headers:{
+        "Content-Type": "application/json" ,
+        "x-sora-target": headers.get("x-sora-target") ?? "",
       },
       body:bodyText && bodyText.trim().length ? bodyText : "{}"
     });
