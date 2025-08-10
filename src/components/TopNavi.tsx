@@ -8,7 +8,7 @@ export default function TopNavi() {
   const ver = packageInfo.version
 
   return (
-    <Navbar  bg="success" expand="md" data-bs-theme="dark">
+    <Navbar  bg="black" expand="md" data-bs-theme="dark">
       <Container>
         <Navbar.Brand as={Link} href="/">
         Metawork SFU Sora Manager {ver}  

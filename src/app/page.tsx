@@ -16,7 +16,7 @@ export default function Home() {
         <div>
           <Container fluid="md" > 
           <h3>Metawork Sora SFU Manager</h3>
-            <h4>SORA SFU セッション情報</h4>
+            <h4>SORA SFU セッション情報: {process.env.NEXT_PUBLIC_SORA_API_URL}</h4>
               <SessionList />
 
           </Container>
