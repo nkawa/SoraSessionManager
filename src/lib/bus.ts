@@ -4,6 +4,7 @@ export type FrontEvent = {
   type: string;
   connectionId?: string;
   channelId?: string;
+  metadata?: any;
   payload?: any;
   // 必要なら userId / clientId なども
 };

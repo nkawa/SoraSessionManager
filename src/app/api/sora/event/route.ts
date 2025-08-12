@@ -22,28 +22,33 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true }, { status: 200 });
   }
 
-  bus.emit("front", <const>{
-    type: "event_webhook.hit",
-    eventType,
-    sessionId,
-    connectionId
-  });
-
+//  console.log("Event Payload is ", payload);
 
   // ここでイベント種別ごとに処理を振り分け
   switch (eventType || payload?.type) {
     case "connection.created":
       // 例: 接続開始のハンドリング
+//      console.log("Connection created event received", payload);
+      bus.emit("front", { type: "connection.created", payload });
       break;
     case "connection.updated":
+      // これ何に使うの？生きてるとき？
       break;
     case "connection.destroyed":
+      bus.emit("front", { type: "connection.destroyed", payload });
       break;
     case "recording.started":
     case "recording.report":
+      console.log("Recording event received", payload);
       break;
     default:
       // 未知イベントは無視
+      bus.emit("front", <const>{
+        type: "event_webhook.hit",
+        eventType,
+        sessionId,
+        connectionId
+      });
       break;
   }
 

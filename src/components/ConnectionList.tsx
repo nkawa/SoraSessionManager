@@ -3,6 +3,9 @@ import React, { useMemo, useState } from "react";
 import { Table, Spinner, Alert, Button, Badge, Form, InputGroup } from "react-bootstrap";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { useSSE, type FrontEvent } from "@/lib/useSSE";
+import { getLocalStorage } from "@/lib/localStorageUtil";
+
 
 const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 
@@ -138,6 +141,27 @@ const ConnectionList: React.FC = () => {
     }
   };
 
+      // auth や session イベントを受け取るためのリスナー
+      const handleEvent = (event: FrontEvent) => {
+          if (event.type === "auth_webhook.hit") {
+              console.log("Auth webhook hit:", event);
+              handleFetch();  
+              // ここで必要な処理を追加（例: トースト通知など）
+          } else if (event.type === "session.created" || event.type === "connection.created" || event.type === "connection.destroyed") {
+  //            console.log("Session created:", event);
+              handleFetch();
+          } else if (event.type === "event_webhook.hit") {
+  //            console.log("Clt event webhook hit:", event);
+  
+          } else if (event.type === "recording.started" || event.type === "recording.stopped") {
+              console.log("Recording event:", event);
+          }else{
+               console.log("SSE Other event:", event);
+          }
+      }
+  
+      const { connected } = useSSE(handleEvent);
+
   const filtered = useMemo(() => {
     return rows.filter((r) => {
       if (onlyChannel && r.channel_id !== onlyChannel) return false;
@@ -158,6 +182,18 @@ const ConnectionList: React.FC = () => {
     rows.forEach((r) => s.add(r.channel_id));
     return Array.from(s).sort();
   }, [rows]);
+
+    const getConnectionInfo = (connectionId: string) => {
+        const raw = getLocalStorage(connectionId);
+        return raw;
+    }
+    const roleWithStar = (r: SoraConnectionItem) => {
+        if (getConnectionInfo(r.connection_id)) {
+            return "*" + r.role;
+        }
+        return r.role;
+    }
+
 
   return (
     <div>
@@ -234,7 +270,7 @@ const ConnectionList: React.FC = () => {
                     {/* ListConnections は「現在の接続」なので常に active 扱い */}
                     <Badge bg="success">active</Badge>
                   </td>
-                  <td style={cellStyle}>{r.role}</td>
+                  <td style={cellStyle} title={getConnectionInfo(r.connection_id)}>{roleWithStar(r)}</td>
                   <td style={cellStyle}>{r.channel_id}</td>
                   <td style={cellStyle} title={r.connection_id}>
                     {r.connection_id.slice(0, 10)}…

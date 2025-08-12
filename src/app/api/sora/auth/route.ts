@@ -9,18 +9,22 @@ import { bus } from "@/lib/bus";
 export async function POST(req: Request) {
 //  console.log("Autho POST",req)
   const body = await req.json().catch(() => ({}));
-  console.log("Auth POST body", body);
+//  console.log("Auth POST body", body);
   const channelId: string | undefined = body?.channel_id;
   const connectionId: string | undefined = body?.connection_id;
+
+  const metadata: any = body?.metadata || {};
+  const ip_info: string | undefined = body?.x_forwarded_for ;
+  const mymeta = {...metadata, ip_info};
+  
 
   // ここに独自ロジック（APIキー検査、DB照会、レート制限など）
   const allowed = !!channelId;
 //  const allowed = channelId?.startsWith("sora") ?? false;
 // ここで、キーのチェックなどを行うことで、任意の接続を止められる
 
- console.log("Auth POST channelId", channelId, "connectionId", connectionId, "allowed", allowed);
-
-
+// console.log("Auth POST channelId", channelId, "connectionId", connectionId, "allowed", allowed);
+//  console.log("Auth mymeta", mymeta);
   if (!allowed) {
     // 拒否する場合は reason を含めるとログが親切
     console.log("Disallowed channel_id:", channelId);
@@ -36,6 +40,7 @@ export async function POST(req: Request) {
     type: "auth_webhook.hit",
     channelId,
     connectionId,
+    metadata: mymeta,
     payload: { allowed },
   });
 

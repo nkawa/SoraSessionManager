@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import {setLocalStorage,getLocalStroage} from "./localStorageUtil";
 
 export type FrontEvent = {
     type: string;
@@ -11,7 +12,6 @@ export type FrontEvent = {
     ts?: number;
 };
 
-
 export function useSSE(onEvent: (evt: FrontEvent) => void) {
     const url = `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/ssevents`;
     const [connected, setConnected] = useState(false);
@@ -19,6 +19,7 @@ export function useSSE(onEvent: (evt: FrontEvent) => void) {
     const esRef = useRef<EventSource | null>(null);
 
     useEffect(() => {
+//        console.log("Run useEffect of useSSE:", url);
         const es = new EventSource(url);
         esRef.current = es;
 
@@ -28,12 +29,31 @@ export function useSSE(onEvent: (evt: FrontEvent) => void) {
         };
 
         es.onmessage = (e) => {
-            console.log("SSE message received:", e.data);
+//            console.log("SSE message received:", e.data);
             try {
-                const data = JSON.parse(e.data) as FrontEvent;
-//                setLastEvent(data);
+                const data = JSON.parse(e.data);
+                if (data.type === "connected") return;
+//                console.log("SSE message received:", e.data);
+                setLastEvent(data); // 同じイベントなら無視？
+
+                if (data.type === "auth_webhook.hit") {
+                    // 認証 Webhook の場合、ConnectinoID , ユーザ情報をlocalStorage に保存
+//                    console.log("Store auth info!!",data)
+                    const connectionId = data.connectionId;
+                    const metadata = data.metadata;
+                    
+                    setLocalStorage(connectionId, JSON.stringify({...metadata})); // 24時間有効
+  //                  console.log("set LocalStorage", connectionId, metadata );
+                }
+
                 onEvent?.(data);
+
+                // ここで、auth関係の情報については処理しちゃうほうが良い
+                // 内部的にデータベースを持つ？
+
+
             } catch (_) {
+                console.error("Failed to parse SSE message:", e.data);
                 // ignore broken JSON
             }
         };
@@ -48,7 +68,7 @@ export function useSSE(onEvent: (evt: FrontEvent) => void) {
             es.close();
             esRef.current = null;
         };
-    }, [url, onEvent]);
+    }, []);
 
     return { connected, lastEvent };
 }

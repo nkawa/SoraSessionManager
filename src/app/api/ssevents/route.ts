@@ -13,15 +13,18 @@ export async function GET(req: Request) {
       };
       // 接続直後に ping
       send({ type: "connected", ts: Date.now() });
-
+      console.log("SSE connection established in server");
+     
       const onEvent = (evt: unknown) =>{
         send(evt);
-        console.log("SSE event1:", evt);
+//        console.log("Server:SSE event:", evt);
       } 
+
       bus.on("front", onEvent);
 
       const heartbeat = setInterval(() => {
         controller.enqueue(new TextEncoder().encode(`: ping\n\n`));
+        console.log("SSE heartbeat ping");
       }, 15000);
 
       const cancel = () => {

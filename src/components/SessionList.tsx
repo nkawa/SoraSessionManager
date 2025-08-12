@@ -8,6 +8,7 @@ import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 import { useSSE, type FrontEvent } from "@/lib/useSSE";
+import { getLocalStorage } from "@/lib/localStorageUtil";
 
 const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
 
@@ -50,6 +51,8 @@ const codecStr = (c: SoraConnection) => {
     if (c.video_codec_type === "H265" && c.video_h265_params) return `H265 (L${c.video_h265_params.level_id})`;
     return c.video_codec_type ?? "-";
 };
+
+
 const kbpsStr = (kbps?: number) => (typeof kbps === "number" ? `${kbps.toLocaleString()} kbps` : "-");
 const durationStr = (startISO: string, endISO: string | null) => {
     const start = new Date(startISO).getTime();
@@ -93,23 +96,27 @@ const SessionList: React.FC = () => {
 
     // auth や session イベントを受け取るためのリスナー
     const handleEvent = (event: FrontEvent) => {
-        console.log("SSE Handle event:", event);
         if (event.type === "auth_webhook.hit") {
             console.log("Auth webhook hit:", event);
-
+            // ちょっと待ってからが良い？
+            setTimeout(handleFetchSessions, 500); // 0.5秒待つ
             // ここで必要な処理を追加（例: トースト通知など）
-        } else if (event.type === "session.created") {
-            console.log("Session created:", event);
+        } else if (event.type === "session.created" || event.type === "connection.created" || event.type === "connection.destroyed") {
+//            console.log("Session created:", event);
             handleFetchSessions();
         } else if (event.type === "event_webhook.hit") {
-            console.log("Clt event webhook hit:", event);
+//            console.log("Clt event webhook hit:", event);
+
         } else if (event.type === "recording.started" || event.type === "recording.stopped") {
             console.log("Recording event:", event);
+        } else{
+            console.log("SSE Handle event:", event);
         }
     }
 
-    const { connected } = useSSE(handleEvent);
+    const { connected, lastEvent } = useSSE(handleEvent);
 
+//    console.log("SSE connected:", connected, lastEvent);
 
     const handleFetchSessions = async () => {
         setLoading(true);
@@ -190,6 +197,16 @@ const SessionList: React.FC = () => {
         }
     };
 
+    const getConnectionInfo = (connectionId: string) => {
+        const raw = getLocalStorage(connectionId);
+        return raw;
+    }
+const roleWithStar = (c: SoraConnection) => {
+    if (getConnectionInfo(c.connection_id)){
+        return "*"+ c.role;
+    }
+    return c.role;
+}
 
     return (
         <div>
@@ -381,7 +398,7 @@ const SessionList: React.FC = () => {
                                                             <td style={cellStyle}>
                                                                 <Badge bg={active ? "success" : "secondary"}>{active ? "active" : "ended"}</Badge>
                                                             </td>
-                                                            <td style={cellStyle}>{c.role}</td>
+                                                            <td style={cellStyle} title={getConnectionInfo(c.connection_id)}>{roleWithStar(c)}</td>
                                                             <td style={cellStyle} title={c.connection_id}>{c.connection_id.slice(0, 10)}…</td>
                                                             <td style={cellStyle}>{codecStr(c)}</td>
                                                             <td style={cellStyle}>{kbpsStr(c.video_bit_rate)}</td>
