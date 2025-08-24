@@ -19,7 +19,7 @@ export default function TopNavi() {
             <Nav.Link as={Link} href="/conn">  Connections </Nav.Link>
           </Nav>
           <Nav className="me-auto">
-            <Nav.Link as={Link} href="/list">  Clients </Nav.Link>
+            <Nav.Link as={Link} href="/video">  Videos </Nav.Link>
           </Nav>
           <Nav>
             <Nav.Link as={Link} href="https://ucl.nuee.nagoya-u.ac.jp">
